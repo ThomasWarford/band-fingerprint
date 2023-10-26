@@ -80,4 +80,25 @@ def plot_cluster_ellipses(df, ax=None, color=None):
             cluster_x_y = df[df.labels==label][["fx", "fy"]].to_numpy() 
             confidence_ellipse(cluster_x_y[:, 0], cluster_x_y[:, 1], ax, edgecolor=color, n_std=3)
     return ax
+
+def plot_groups(df, column, ax=None, values=None):
+    import colorcet as cc
+    
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(13,13))
+    if column not in df.columns:
+        raise IndexError(f"Column {column} is not in the dataframe")
+    
+    if not values:
+        values = df[column].unique()
+
+    for i, value in enumerate(values):
+        indices = df[column]==value
+        ax.scatter(df.fx[indices], df.fy[indices],s=3, c=cc.glasbey[i%len(cc.glasbey)], label=value)
+
+    if len(values) > len(cc.glasbey):
+        print(f"Colors used multiple times since number of categories exceeds {len(cc.glasbey)}.")
+    
+    return ax
+        
     
