@@ -76,3 +76,22 @@ def bare_plot(material_id, data_directory=DATA_DIRECTORY, plot_dos=False, e_boun
         ax.yaxis.grid(False)
     
     plt.subplots_adjust(left=-0.001, right=1, top=1+0.001, bottom=0)
+
+def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4]):
+    data_directory = Path(data_directory)
+    
+    # get bands data
+    filename_bands = data_directory/f"bands/{material_id}.json"
+    if not filename_bands.exists():
+        raise FileNotFoundError("No such file %s" % filename_bands)
+        
+    bands_dict=json.load(open(filename_bands))
+    bands_dict["projection"] = None
+    bands_dict["bands"] = {1: band_energies_minus_efermi+bands_dict["efermi"]}
+    bands=BandStructureSymmLine.from_dict(bands_dict)
+
+    # create plotter object
+    bsp=BSDOSPlotter(vb_energy_range=-e_bounds[0], cb_energy_range=e_bounds[1], fixed_cb_energy=True, font="DejaVu Sans", bs_projection=None)
+
+    ax = bsp.get_plot(bands)  
+    plt.show()
