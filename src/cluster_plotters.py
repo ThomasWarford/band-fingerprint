@@ -74,11 +74,10 @@ def plot_cluster_ellipses(df, ax=None, color=None):
             if color_map:
                 color=cmap(norm(label))
             
-            
-            ax.annotate(label, df.iloc[rep_id][["fx", "fy"]]+[-7,-1],color=color,alpha=1, weight='normal', ha='center', va='center', size=9).draggable()
 
             cluster_x_y = df[df.labels==label][["fx", "fy"]].to_numpy() 
             confidence_ellipse(cluster_x_y[:, 0], cluster_x_y[:, 1], ax, edgecolor=color, n_std=3)
+            ax.annotate(label, cluster_x_y.mean(0)+[-7,0],color=color,alpha=1, weight='normal', ha='center', va='center', size=9)
     return ax
 
 def plot_groups(df, column, ax=None, values=None):
