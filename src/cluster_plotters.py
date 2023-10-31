@@ -93,7 +93,10 @@ def plot_groups(df, column, ax=None, values=None):
 
     for i, value in enumerate(values):
         indices = df[column]==value
-        ax.scatter(df.fx[indices], df.fy[indices],s=3, c=cc.glasbey[i%len(cc.glasbey)], label=value)
+        if (value == -1) and (column=="labels"):
+            ax.scatter(df.fx[indices], df.fy[indices],s=1, c="black", label=value)
+        else:
+            ax.scatter(df.fx[indices], df.fy[indices],s=3, c=cc.glasbey[i%len(cc.glasbey)], label=value)
 
     if len(values) > len(cc.glasbey):
         print(f"Colors used multiple times since number of categories exceeds {len(cc.glasbey)}.")
