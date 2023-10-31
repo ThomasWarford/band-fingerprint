@@ -9,7 +9,9 @@ from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos
 from pymatgen.electronic_structure.plotter import BSDOSPlotter
 
-DATA_DIRECTORY = Path("../../data")
+#DATA_DIRECTORY = Path("../../data")
+# "henry's local data path"
+DATA_DIRECTORY = Path("../../MPhys_Project/data extraction+fingerprinting/FULL_MATPEDIA_DATA")
 
 def plot(material_id, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4]):
     
