@@ -4,16 +4,22 @@ import os
 from pathlib import Path
 import matplotlib.pyplot as plt
 import warnings
+import numpy as np
+from skimage.transform import resize
 
 from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos
 from pymatgen.electronic_structure.plotter import BSDOSPlotter
 
-#DATA_DIRECTORY = Path("../../data")
+# DATA_DIRECTORY = Path("../../data")
+# DATA_DIRECTORY = Path("../../../storage/2dmatpedia")
 # "henry's local data path"
 DATA_DIRECTORY = Path("../../MPhys_Project/data extraction+fingerprinting/FULL_MATPEDIA_DATA")
 
-def plot(material_id, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4]):
+MAX_ENERGY_MINUS_EFERMI_NEAR_EFERMI =  28.8
+MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI =  -19.3
+
+def plot(material_id, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], bs_projection="elements", dos=True):
     
     data_directory = Path(data_directory)
     
@@ -26,10 +32,10 @@ def plot(material_id, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4]):
     bands=BandStructureSymmLine.from_dict(bands_dict)
 
     # create plotter object
-    bsp=BSDOSPlotter(vb_energy_range=-e_bounds[0], cb_energy_range=e_bounds[1], fixed_cb_energy=True, font="DejaVu Sans")
+    bsp=BSDOSPlotter(vb_energy_range=-e_bounds[0], cb_energy_range=e_bounds[1], fixed_cb_energy=True, font="DejaVu Sans", bs_projection=bs_projection)
 
     filename_dos = data_directory/f"dos/{material_id}.json"
-    if filename_dos.exists():
+    if filename_dos.exists() and dos:
         dos_dict=json.load(open(filename_dos))
         dos=CompleteDos.from_dict(dos_dict)
         ax = bsp.get_plot(bands, dos=dos)
@@ -79,7 +85,7 @@ def bare_plot(material_id, data_directory=DATA_DIRECTORY, plot_dos=False, e_boun
     
     plt.subplots_adjust(left=-0.001, right=1, top=1+0.001, bottom=0)
 
-def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4]):
+def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
     data_directory = Path(data_directory)
     
     # get bands data
@@ -87,8 +93,19 @@ def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_direct
     if not filename_bands.exists():
         raise FileNotFoundError("No such file %s" % filename_bands)
         
+
+            
+        
     bands_dict=json.load(open(filename_bands))
+    band_energies_width = np.array(bands_dict["bands"]["1"]).shape[1]
+    
+    if band_energies_width != band_energies_minus_efermi.shape[1]:
+        if verbose:
+            print(f"Dimensions of energy array don't match those of {material_id}: resizing.")
+        band_energies_minus_efermi = resize(band_energies_minus_efermi, (band_energies_minus_efermi.shape[0], band_energies_width), preserve_range=True)
+        
     bands_dict["projection"] = None
+    # bands 
     bands_dict["bands"] = {1: band_energies_minus_efermi+bands_dict["efermi"]}
     bands=BandStructureSymmLine.from_dict(bands_dict)
 
@@ -97,3 +114,9 @@ def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_direct
 
     ax = bsp.get_plot(bands)  
     plt.show()
+    
+def plot_from_bands_tensor(material_id, band_energies_tensor_normalized, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
+    band_energies_minus_efermi = band_energies_tensor_normalized.cpu().numpy()
+    band_energies_minus_efermi = band_energies_minus_efermi * (MAX_ENERGY_MINUS_EFERMI_NEAR_EFERMI - MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI) + MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI
+    
+    plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=data_directory, e_bounds=e_bounds, verbose=verbose)
