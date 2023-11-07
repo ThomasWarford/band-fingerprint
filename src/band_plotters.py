@@ -11,10 +11,14 @@ from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos
 from pymatgen.electronic_structure.plotter import BSDOSPlotter
 
+from fastai import *
+from fastai.vision.all import *
+from .Tiff32Image import *
+
 # DATA_DIRECTORY = Path("../../data")
-# DATA_DIRECTORY = Path("../../../storage/2dmatpedia")
+DATA_DIRECTORY = Path("../../../storage/2dmatpedia")
 # "henry's local data path"
-DATA_DIRECTORY = Path("../../MPhys_Project/data extraction+fingerprinting/FULL_MATPEDIA_DATA")
+# DATA_DIRECTORY = Path("../../MPhys_Project/data extraction+fingerprinting/FULL_MATPEDIA_DATA")
 
 MAX_ENERGY_MINUS_EFERMI_NEAR_EFERMI =  28.8
 MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI =  -19.3
@@ -93,7 +97,7 @@ def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_direct
     if not filename_bands.exists():
         raise FileNotFoundError("No such file %s" % filename_bands)
         
-
+    band_energies_minus_efermi = np.squeeze(band_energies_minus_efermi) # remove length 1 dimensions
             
         
     bands_dict=json.load(open(filename_bands))
@@ -113,10 +117,38 @@ def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_direct
     bsp=BSDOSPlotter(vb_energy_range=-e_bounds[0], cb_energy_range=e_bounds[1], fixed_cb_energy=True, font="DejaVu Sans", bs_projection=None)
 
     ax = bsp.get_plot(bands)  
-    plt.show()
+    
+    return ax
     
 def plot_from_bands_tensor(material_id, band_energies_tensor_normalized, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
-    band_energies_minus_efermi = band_energies_tensor_normalized.cpu().numpy()
+    band_energies_minus_efermi = band_energies_tensor_normalized.detach().cpu().numpy()
     band_energies_minus_efermi = band_energies_minus_efermi * (MAX_ENERGY_MINUS_EFERMI_NEAR_EFERMI - MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI) + MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI
     
-    plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=data_directory, e_bounds=e_bounds, verbose=verbose)
+    return plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=data_directory, e_bounds=e_bounds, verbose=verbose)
+    
+def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
+    fig, ax = plt.subplots(1, 2)
+    
+    image_filename = data_directory/f"images/energies8/{material_id}.tiff"
+    input_tensor = torch.from_numpy(load_tiff_uint32_image(image_filename).astype(np.float64))
+    input_tensor = IntToFloatTensor(div=2**16-1)(input_tensor)
+    input_tensor = input_tensor[None, None, :, :]
+    input_tensor = input_tensor.float().cuda()
+    output_tensor = model.forward(input_tensor)
+    
+    input_tensor = input_tensor.squeeze().cpu()
+    output_tensor = output_tensor.detach().squeeze().cpu()
+    
+    ax[0].set_title("Input")
+    ax[0].imshow(input_tensor.numpy())
+    
+    ax[1].set_title("Reconstruction")
+    ax[1].imshow(output_tensor.numpy())
+    
+    ax_input = plot_from_bands_tensor(material_id, input_tensor)
+    ax_input.set_title("Input")
+    
+    ax_output = plot_from_bands_tensor(material_id, input_tensor)
+    ax_output.set_title("Reconstruction")
+    
+    return ax
