@@ -124,6 +124,8 @@ def plot_from_bands_tensor(material_id, band_energies_tensor_normalized, data_di
     band_energies_minus_efermi = band_energies_tensor_normalized.detach().cpu().numpy()
     band_energies_minus_efermi = band_energies_minus_efermi * (MAX_ENERGY_MINUS_EFERMI_NEAR_EFERMI - MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI) + MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI
     
+    print(band_energies_minus_efermi)
+    
     return plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=data_directory, e_bounds=e_bounds, verbose=verbose)
     
 def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
@@ -131,8 +133,9 @@ def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, e_bounds=
     
     image_filename = data_directory/f"images/energies8/{material_id}.tiff"
     input_tensor = torch.from_numpy(load_tiff_uint32_image(image_filename).astype(np.float64))
-    input_tensor = IntToFloatTensor(div=2**16-1)(input_tensor)
+    input_tensor = input_tensor / (2**16-1)
     input_tensor = input_tensor[None, None, :, :]
+    print(input_tensor)
     input_tensor = input_tensor.float().cuda()
     output_tensor = model.forward(input_tensor)
     
@@ -148,7 +151,7 @@ def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, e_bounds=
     ax_input = plot_from_bands_tensor(material_id, input_tensor)
     ax_input.set_title("Input")
     
-    ax_output = plot_from_bands_tensor(material_id, input_tensor)
+    ax_output = plot_from_bands_tensor(material_id, output_tensor)
     ax_output.set_title("Reconstruction")
     
     return ax
