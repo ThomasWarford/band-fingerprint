@@ -20,9 +20,6 @@ DATA_DIRECTORY = Path("../../../storage/2dmatpedia")
 # "henry's local data path"
 # DATA_DIRECTORY = Path("../../MPhys_Project/data extraction+fingerprinting/FULL_MATPEDIA_DATA")
 
-MAX_ENERGY_MINUS_EFERMI_NEAR_EFERMI =  28.8
-MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI =  -19.3
-
 def plot(material_id, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], bs_projection="elements", dos=True):
     
     data_directory = Path(data_directory)
@@ -120,13 +117,13 @@ def plot_from_bands_picture(material_id, band_energies_minus_efermi, data_direct
     
     return ax
     
-def plot_from_bands_tensor(material_id, band_energies_tensor_normalized, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
+def plot_from_bands_tensor(material_id, band_energies_tensor_normalized, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
     band_energies_minus_efermi = band_energies_tensor_normalized.detach().cpu().numpy()
-    band_energies_minus_efermi = band_energies_minus_efermi * (MAX_ENERGY_MINUS_EFERMI_NEAR_EFERMI - MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI) + MIN_ENERGY_MINUS_EFERMI_NEAR_EFERMI
+    band_energies_minus_efermi = band_energies_minus_efermi * (max_energy_minus_efermi - min_energy_minus_efermi) + min_energy_minus_efermi
     
     return plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=data_directory, e_bounds=e_bounds, verbose=verbose)
     
-def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands", device="gpu", e_bounds=[-4, 4], verbose=True, width=None):
+def view_prediction(material_id, model, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands", device="gpu", e_bounds=[-4, 4], verbose=True, width=None):
     fig, ax = plt.subplots(2, 1)
     
     image_filename = data_directory/f"images/{image_directory}/{material_id}.tiff"
@@ -155,10 +152,10 @@ def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, image_dir
     ax[1].set_title("Reconstruction")
     ax[1].imshow(output_tensor.numpy())
     
-    ax_input = plot_from_bands_tensor(material_id, input_tensor, e_bounds=e_bounds, verbose=False)
+    ax_input = plot_from_bands_tensor(material_id, input_tensor, min_energy_minus_efermi, max_energy_minus_efermi, e_bounds=e_bounds, verbose=False)
     ax_input.set_title("Input")
     
-    ax_output = plot_from_bands_tensor(material_id, output_tensor, e_bounds=e_bounds, verbose=False)
+    ax_output = plot_from_bands_tensor(material_id, output_tensor, min_energy_minus_efermi, max_energy_minus_efermi, e_bounds=e_bounds, verbose=False)
     ax_output.set_title("Reconstruction")
     
     return ax
