@@ -4,7 +4,8 @@ from skimage import io
 
 def load_tiff_uint32_image(fn):
     "Open and load a raw image with rawpy"
-    return io.imread(fn, np.uint32)
+    image = io.imread(fn).astype(np.int32)
+    return image
 
 
 class Tiff32Image(PILBase):
@@ -12,6 +13,7 @@ class Tiff32Image(PILBase):
     def create(cls, fn:(Path,str), **kwargs)->None:
         "Open a raw image from path `fn`"
         arr = load_tiff_uint32_image(fn)
-        return cls(Image.fromarray(arr.astype(np.float64)))
+        out = Image.fromarray(arr, "I")             
+        return cls(out)
     
 Tiff32Image._tensor_cls = TensorImageBW

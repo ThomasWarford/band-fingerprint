@@ -126,14 +126,24 @@ def plot_from_bands_tensor(material_id, band_energies_tensor_normalized, data_di
     
     return plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=data_directory, e_bounds=e_bounds, verbose=verbose)
     
-def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, e_bounds=[-4, 4], verbose=True):
-    fig, ax = plt.subplots(1, 2)
+def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands", device="gpu", e_bounds=[-4, 4], verbose=True, width=None):
+    fig, ax = plt.subplots(2, 1)
     
-    image_filename = data_directory/f"images/energies8/{material_id}.tiff"
-    input_tensor = torch.from_numpy(load_tiff_uint32_image(image_filename).astype(np.float64))
+    image_filename = data_directory/f"images/{image_directory}/{material_id}.tiff"
+    input_numpy = load_tiff_uint32_image(image_filename).astype(np.float64)
+    if width:
+        input_numpy = resize(input_numpy, (input_numpy.shape[0], width))
+    input_tensor = torch.from_numpy(input_numpy)
     input_tensor = input_tensor / (2**16-1)
+    
     input_tensor = input_tensor[None, None, :, :]
-    input_tensor = input_tensor.float().cuda()
+    if device == "gpu":      
+        input_tensor = input_tensor.float().cuda()
+        model.cuda()
+    else:
+        input_tensor = input_tensor.float().cpu()
+        model.cpu()        
+        
     output_tensor = model.forward(input_tensor)
     
     input_tensor = input_tensor.squeeze().cpu()
@@ -145,10 +155,10 @@ def view_prediction(material_id, model, data_directory=DATA_DIRECTORY, e_bounds=
     ax[1].set_title("Reconstruction")
     ax[1].imshow(output_tensor.numpy())
     
-    ax_input = plot_from_bands_tensor(material_id, input_tensor)
+    ax_input = plot_from_bands_tensor(material_id, input_tensor, e_bounds=e_bounds, verbose=False)
     ax_input.set_title("Input")
     
-    ax_output = plot_from_bands_tensor(material_id, output_tensor)
+    ax_output = plot_from_bands_tensor(material_id, output_tensor, e_bounds=e_bounds, verbose=False)
     ax_output.set_title("Reconstruction")
     
     return ax
