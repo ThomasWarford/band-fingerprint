@@ -5,11 +5,12 @@ def conv(
     ni, # input channels (3 for rgb image)
     nf, # output channels
     ks=3, # kernal size (ks * ks)
-    act=True): #whether we add an activation layer
+    act=True, #whether we add an activation layer
+    norm=False): 
 
-    layers = [nn.Conv2d(ni, nf, ks, stride=2, padding=ks//2)]
-    if act:
-        layers.append(nn.ReLU())
+    layers = [nn.Conv2d(ni, nf, ks, stride=2, padding=ks//2, bias=False)]
+    if norm: layers.append(nn.BatchNorm2d(nf))
+    if act: layers.append(nn.ReLU())
     
     return nn.Sequential(*layers)
 
@@ -17,13 +18,15 @@ def deconv(
     ni, # input channels (3 for rgb image)
     nf, # output channels
     ks=5, # kernal size (ks * ks)
-    act=True): #whether we add an activation layer)
+    act=True,
+    norm=False): #whether we add an activation layer)
     
     layers = [nn.UpsamplingNearest2d(scale_factor=2), 
-             nn.Conv2d(ni, nf, ks, stride=1, padding=ks//2, bias=False),
-             nn.BatchNorm2d(nf)]
+             nn.Conv2d(ni, nf, ks, stride=1, padding=ks//2, bias=False),]
     
+    if norm: layers.append(nn.BatchNorm2d(nf))
     if act: layers.append(nn.ReLU())
+    
     
     return nn.Sequential(*layers)
 
