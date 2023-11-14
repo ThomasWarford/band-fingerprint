@@ -33,34 +33,31 @@ def deconv(
 
 
 class SimpleAutoencoder(nn.Module):
-    def __init__(self, n_latent=128):
+    def __init__(self, n_latent=128, norm=False):
         super().__init__()
         self.encode = nn.Sequential(
-            conv(1, 4), # 224x128
-            conv(4, 8), # 112x64
-            conv(8, 16), # 66x32
-            conv(16, 32), # 33x16
-            # nn.Flatten(),
-            # nn.Linear(32*33*16, n_latent),
-            # nn.Tanh()
+            conv(1, 4, norm=norm), # 6x64
+            conv(4, 8, norm=norm), # 3x32
+            nn.Flatten(),
+            nn.Linear(3*32*8, n_latent),
+            nn.Tanh(),
         )
         
         self.decode_linear=nn.Sequential(
-            nn.Linear(n_latent, 32*33*16),
-            nn.ReLU()
+            nn.Linear(n_latent, 8*3*32),
+            nn.BatchNorm1d(8*3*32),
+            nn.ReLU(),
         )
         
         self.decode = nn.Sequential(
-            deconv(32, 16), # 32x32
-            deconv(16, 8), # 64x64
-            deconv(8, 4), # 128x128
-            deconv(4, 1, act=False), # 256x256
+            deconv(8, 4, norm=norm), # 6x64
+            deconv(4, 1, norm=norm, act=False), # 12x128
             nn.Sigmoid()
         )
         
     
     def forward(self, x):
-        output = self.encode(x)
-        # output = self.decode_linear(output)
-        # output = output.view(-1, 32, 33, 16)
-        return self.decode(output)
+        out = self.encode(x)
+        out = self.decode_linear(out)
+        out = out.view(-1, 8, 3, 32)
+        return self.decode(out)
