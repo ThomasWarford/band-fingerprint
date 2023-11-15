@@ -122,14 +122,45 @@ def plot_from_bands_tensor(material_id, band_energies_tensor_normalized, min_ene
     band_energies_minus_efermi = band_energies_minus_efermi * (max_energy_minus_efermi - min_energy_minus_efermi) + min_energy_minus_efermi
     
     return plot_from_bands_picture(material_id, band_energies_minus_efermi, data_directory=data_directory, e_bounds=e_bounds, verbose=verbose)
+
+def pad_or_crop_to_height(image, desired_height):
+    # Get the current size of the image
+    current_height = image.shape[0]
     
-def view_prediction(material_id, model, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands", device="gpu", e_bounds=[-4, 4], verbose=True, width=None):
+    if current_height < desired_height:
+
+        # Calculate the pad width for each axis
+        pad_width = [((desired_height-current_height) // 2, (desired_height-current_height + 1) // 2),
+                     (0, 0)]
+                     
+
+        # Pad the image with zeros using np.pad
+        padded_image = np.pad(image, pad_width, mode='constant', constant_values=0)
+
+    # Crop the padded image to the desired size
+    cropped_image = padded_image[:desired_height]
+
+    return cropped_image
+
+    
+def view_prediction(material_id, model, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands",
+                    device="gpu", e_bounds=[-4, 4], verbose=True, width=None, height=None, height_mode="pad"):
     fig, ax = plt.subplots(2, 1)
     
     image_filename = data_directory/f"images/{image_directory}/{material_id}.tiff"
     input_numpy = load_tiff_uint32_image(image_filename).astype(np.float64)
+    
     if width:
         input_numpy = resize(input_numpy, (input_numpy.shape[0], width))
+    
+    if height:
+        if height_mode.lower() == "pad":
+            input_numpy = pad_or_crop_to_height(input_numpy, height)
+        elif height_mode.lower() == "squish":
+            input_numpy = resize(input_numpy, (height, input_numpy.shape[1]))#
+        else:
+            print("Invalid height_mode: can only be pad or squish.")
+    
     input_tensor = torch.from_numpy(input_numpy)
     input_tensor = input_tensor / (2**16-1)
     
@@ -159,3 +190,31 @@ def view_prediction(material_id, model, min_energy_minus_efermi, max_energy_minu
     ax_output.set_title("Reconstruction")
     
     return ax
+
+# def view_prediction(material_id, learner, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands", device="gpu", e_bounds=[-4, 4], verbose=True, width=None):
+#     fig, ax = plt.subplots(2, 1)
+    
+#     image_filename = data_directory/f"images/{image_directory}/{material_id}.tiff"
+#     image = TiffImage.create(image_filename, with_input=True)
+ 
+#     (_, _, prediction, inp) = learner.predict(image, with_input=True)
+#     # if width:
+#     #     input_numpy = resize(input_numpy, (input_numpy.shape[0], width))
+    
+#     print(torch.equal(inp, prediction))
+    
+#     prediction = prediction[0]
+    
+#     ax[0].set_title("Input")
+#     ax[0].imshow(np.array(image))
+    
+#     ax[1].set_title("Reconstruction")
+#     ax[1].imshow(prediction.numpy())
+    
+#     ax_input = plot_from_bands_tensor(material_id, tensor(image, min_energy_minus_efermi, max_energy_minus_efermi, e_bounds=e_bounds, verbose=False)
+#     ax_input.set_title("Input")
+    
+#     ax_output = plot_from_bands_tensor(material_id, prediction, min_energy_minus_efermi, max_energy_minus_efermi, e_bounds=e_bounds, verbose=False)
+#     ax_output.set_title("Reconstruction")
+    
+#     return ax

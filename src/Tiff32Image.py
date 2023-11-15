@@ -4,14 +4,14 @@ from skimage import io
 
 def load_tiff_uint16_image(fn):
     "Open and load a uint16 as a float32 numpy array"
-    arr = io.imread(fn).astype(np.float32)#/(2**16-1)
+    arr = io.imread(fn).astype(np.float32)
     return arr
 
 class TiffImage(PILBase):
     @classmethod
     def create(cls, fn:(Path,str), **kwargs)->None:
         "Open a uint16 tiff image from path `fn`"
-        arr = load_tiff_uint16_image(fn)#*255 # multiply by 255 as fastai erroneously divides float PIL image by 255
+        arr = load_tiff_uint16_image(fn)
         out = Image.fromarray(arr, "F")  
         return cls(out)
 TiffImage._tensor_cls = TensorImageBW
