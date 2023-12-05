@@ -1,3 +1,6 @@
+from fastai import *
+from fastai.vision.all import *
+
 class PILImageNoised(PILImage): pass
 class TensorImageNoised(TensorImage): pass
 PILImageNoised._tensor_cls = TensorImageNoised
