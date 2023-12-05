@@ -40,41 +40,64 @@ class ResNetAutoEncoder(nn.Module):
 
         return x
     
-class BigResNetAutoEncoder(nn.Module):
+class ResnetVAE(ResNetAutoEncoder):
+    def __init__(self, configs, bottleneck, sigmoid, z_channels):
 
-    def __init__(self, configs, bottleneck, sigmoid):
-
-        super(BigResNetAutoEncoder, self).__init__()
-
-        self.encoder = BigEncoder(configs=configs,       bottleneck=bottleneck)
-        self.decoder = BigDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid)
+        super(ResnetVAE, self).__init__(configs, bottleneck, sigmoid)
+        
+        self.z_channels = z_channels
+        self.z_dim = z_channels * 4 * 4 # for 128x128 images
+        
+        
+        self.encoder = ResNetEncoder(configs=configs,       bottleneck=bottleneck, z_channels=z_channels*2)   
+        self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid, z_channels=z_channels)
+        
+        self.flatten = nn.Flatten()
     
     def forward(self, x):
-
         x = self.encoder(x)
-        x = self.decoder(x)
-
-        return x
-    
-class ResNetAutoEncoderCompressed(nn.Module):
-
-    def __init__(self, configs, bottleneck, z_dim):
-
-        super(ResNetAutoEncoderCompressed, self).__init__()
-
-        self.encoder = ResNet(configs=configs, bottleneck=bottleneck, num_classes=z_dim)
-        self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck)
+        mu_logvar = self.flatten(x)
+        mu = mu_logvar[:, :self.z_dim]
+        logvar = mu_logvar[:, self.z_dim:]
         
-        if bottleneck:
-            self.out_features = 2048
-        else:
-            self.out_features = 512
-            
-        self.fc = nn.Linear(in_features=z_dim, out_features=self.out_features)
+        z = self.reparametrize(mu, logvar)
+        res = z.view(z.shape[0], self.z_channels, 4, 4)
+        x_recon = self.decoder(res)
+        
+        return x_recon, mu, logvar
+
+    def reparametrize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
     
-        self.upscale = nn.Sequential(nn.UpsamplingNearest2d((4, 4)), nn.Conv2d(self.out_features, self.out_features, 1)) # for size 128 images
+class ResnetVAEOld2(ResNetAutoEncoder):
+    def __init__(self, configs, bottleneck, sigmoid, z_channels, z_dim):
+
+        super(ResnetVAE, self).__init__(configs, bottleneck, sigmoid)
+        
+        self.z_channels = z_channels
+        self.linear_size = z_channels * 4 * 4 # for 128x128 images
+        self.z_dim = z_dim
+        
+        
+        self.encoder = ResNetEncoder(configs=configs,       bottleneck=bottleneck, z_channels=z_channels)
+        self.flatten = nn.Flatten()
+        self.linear1 = nn.Linear(self.linear_size, z_dim*2)
+        
+        self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid, z_channels=z_channels)
+        self.linear2 = nn.Linear(z_dim, self.linear_size)
         
         for m in self.modules():
+                # if isinstance(m, (nn.Linear, nn.Conv2d)):
+                #     init.kaiming_normal(m.weight)
+                #     if m.bias is not None:
+                #         m.bias.data.fill_(0)
+                # elif isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
+                #     m.weight.data.fill_(1)
+                #     if m.bias is not None:
+                #         m.bias.data.fill_(0)
+            
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
                 if m.bias is not None:
@@ -85,18 +108,123 @@ class ResNetAutoEncoderCompressed(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
                 nn.init.constant_(m.bias, 0)
+        
+        
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.flatten(x)
+        mu_logvar = self.linear1(x)
+        mu = mu_logvar[:, :self.z_dim]
+        logvar = mu_logvar[:, self.z_dim:]
+        
+        z = self.reparametrize(mu, logvar)
+        res = self.linear2(z)
+        res = res.view(res.shape[0], self.z_channels, 4, 4)
+        x_recon = self.decoder(res)
+        
+        return x_recon, mu, logvar
+
+    def reparametrize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
+    
+class ResnetVAEOld(ResNetAutoEncoder):
+    def __init__(self, configs, bottleneck, sigmoid, z_channels):
+
+        super(ResnetVAEOld, self).__init__(configs, bottleneck, sigmoid, z_channels)
+        
+        self.z_channels = z_channels
+        self.z_dim = z_channels * 4 * 4 # for 128x128 images
+        
+        self.encoder = ResNetEncoder(configs=configs,       bottleneck=bottleneck, z_channels=z_channels*2)
+        self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid, z_channels=z_channels)
+        
+        self.flatten = nn.Flatten()
+        
+        
+    def forward(self, x):
+        x = self.encoder(x)
+        mu_logvar = self.flatten(x)
+        mu = mu_logvar[:, :self.z_dim]
+        logvar = mu_logvar[:, self.z_dim:]
+        
+        z = self.reparametrize(mu, logvar)
+        z = z.view(z.shape[0], self.z_channels, 4, 4)
+        x_recon = self.decoder(z)
+        
+        return x_recon, mu, logvar
+
+    def reparametrize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
+
+        
+    
+class BigResNetAutoEncoder(nn.Module):
+
+    def __init__(self, configs, bottleneck, sigmoid):
+
+        super(BigResNetAutoEncoder, self).__init__()
+
+        self.encoder = BigEncoder(configs=configs,       bottleneck=bottleneck)
+        self.decoder = BigDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid)
+        
+        self.flatten = nn.Flatten()
     
     def forward(self, x):
 
         x = self.encoder(x)
-        x = F.relu(x)
-        x = self.fc(x)
-        x = F.relu(x)
-        x = x.view(x.shape[0], -1, 1, 1) 
-        x = self.upscale(x)
+        x = self.flatten(x)
+        
+        
         x = self.decoder(x)
 
         return x
+    
+# class ResNetAutoEncoderLinear(nn.Module):
+
+#     def __init__(self, configs, bottleneck, z_dim):
+
+#         super(ResNetAutoEncoderLinear, self).__init__()
+
+#         self.encoder = ResNetEncoder(configs=configs, bottleneck=bottleneck)
+#         self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck)
+        
+#         if bottleneck:
+#             self.out_features = 2048
+#         else:
+#             self.out_features = 512
+            
+#         self.fc1 = nn.Linear(in_features=z_dim, out_features=self.out_features)
+#         self.fc2 = nn.Linear(in_features=z_dim, out_features=self.out_features)
+    
+#         self.upscale = nn.Sequential(nn.UpsamplingNearest2d((4, 4)), nn.Conv2d(self.out_features, self.out_features, 1)) # for size 128 images
+        
+#         for m in self.modules():
+#             if isinstance(m, nn.Conv2d):
+#                 nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
+#                 if m.bias is not None:
+#                     nn.init.constant_(m.bias, 0)
+#             elif isinstance(m, nn.BatchNorm2d):
+#                 nn.init.constant_(m.weight, 1)
+#                 nn.init.constant_(m.bias, 0)
+#             elif isinstance(m, nn.Linear):
+#                 nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
+#                 nn.init.constant_(m.bias, 0)
+    
+#     def forward(self, x):
+
+#         x = self.encoder(x)
+#         x = self.relu(x)
+#         x = self.fc(x)
+#         x = self.relu(x)
+#         x = x.view(x.shape[0], -1, 4, 4) 
+#         x = self.upscale(x)
+#         x = self.decoder(x)
+
+#         return x
 
 class ResNet(nn.Module):
 
