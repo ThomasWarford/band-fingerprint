@@ -747,6 +747,14 @@ class DecoderBottleneckLayer(nn.Module):
         x = x + identity
 
         return x
+    
+# put in place of final relu of resnet encoder (for vae)
+class ResidualLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(32, 32, 1)
+    def forward(self, x):
+        return x + self.conv(x)
 
 if __name__ == "__main__":
 
