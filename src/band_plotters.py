@@ -21,7 +21,7 @@ from pymatgen.electronic_structure.plotter import BSDOSPlotter
 from torchvision import transforms
 from fastai import *
 from fastai.vision.all import *
-from .Tiff32Image import *
+# from .Tiff32Image import *
 
 # DATA_DIRECTORY = Path("../../data")
 DATA_DIRECTORY = Path("/storage/2dmatpedia")
