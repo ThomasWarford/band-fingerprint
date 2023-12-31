@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+"""
+TensorImageNoised class, and corresponding transforms.
+
+This class exists so autoencoder inputs can be subjected to augmentation transforms without the outputs being affected when using fastai dataloaders.
+"""
+
 from fastai import *
 from fastai.vision.all import *
 

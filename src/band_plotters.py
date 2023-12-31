@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+"""
+Functions which plot band structures.
+
+Many were used heavily for previous approaches but are now redundant.
+"""
+
 import json
 import sys
 import os
@@ -283,35 +290,3 @@ def view_prediction_npz(material_id, model, npz_path, npz_filename, npz_key="ima
     
     ax[1].set_title("Reconstruction")
     ax[1].imshow(prediction)
-    
-    
-    
-    
-    
-# def view_prediction(material_id, learner, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands", device="gpu", e_bounds=[-4, 4], verbose=True, width=None):
-#     fig, ax = plt.subplots(2, 1)
-    
-#     image_filename = data_directory/f"images/{image_directory}/{material_id}.tiff"
-#     image = TiffImage.create(image_filename, with_input=True)
- 
-#     (_, _, prediction, inp) = learner.predict(image, with_input=True)
-#     # if width:
-#     #     input_numpy = resize(input_numpy, (input_numpy.shape[0], width))
-    
-#     print(torch.equal(inp, prediction))
-    
-#     prediction = prediction[0]
-    
-#     ax[0].set_title("Input")
-#     ax[0].imshow(np.array(image))
-    
-#     ax[1].set_title("Reconstruction")
-#     ax[1].imshow(prediction.numpy())
-    
-#     ax_input = plot_from_bands_tensor(material_id, tensor(image, min_energy_minus_efermi, max_energy_minus_efermi, e_bounds=e_bounds, verbose=False)
-#     ax_input.set_title("Input")
-    
-#     ax_output = plot_from_bands_tensor(material_id, prediction, min_energy_minus_efermi, max_energy_minus_efermi, e_bounds=e_bounds, verbose=False)
-#     ax_output.set_title("Reconstruction")
-    
-#     return ax

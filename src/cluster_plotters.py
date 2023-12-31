@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+"""
+Functions which plot confidence elipses around clusters.
+"""
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import matplotlib

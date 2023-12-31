@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+"""
+Transforms for images applied using fastai dataloaders.
+"""
+
 from fastai import *
 from fastai.vision.all import *
 
