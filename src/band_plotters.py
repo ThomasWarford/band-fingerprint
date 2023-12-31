@@ -11,12 +11,15 @@ from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos
 from pymatgen.electronic_structure.plotter import BSDOSPlotter
 
+from torchvision import transforms
 from fastai import *
 from fastai.vision.all import *
 from .Tiff32Image import *
 
 # DATA_DIRECTORY = Path("../../data")
-DATA_DIRECTORY = Path("../../../storage/2dmatpedia")
+DATA_DIRECTORY = Path("/storage/2dmatpedia")
+ANUPAM_PATH = Path("/notebooks/band-fingerprint/fingerprints/anupam_original.csv")
+
 # "henry's local data path"
 # DATA_DIRECTORY = Path("../../MPhys_Project/data extraction+fingerprinting/FULL_MATPEDIA_DATA")
 
@@ -135,20 +138,20 @@ def pad_or_crop_to_height(image, desired_height):
                      
 
         # Pad the image with zeros using np.pad
-        padded_image = np.pad(image, pad_width, mode='constant', constant_values=0)
+        image = np.pad(image, pad_width, mode='constant', constant_values=0)
 
     # Crop the padded image to the desired size
-    cropped_image = padded_image[:desired_height]
+    image = image[:desired_height]
 
-    return cropped_image
+    return image
 
     
 def view_prediction(material_id, model, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands",
-                    device="gpu", e_bounds=[-4, 4], verbose=True, width=None, height=None, height_mode="pad"):
+                    device="gpu", e_bounds=[-4, 4], verbose=True, width=None, height=None, height_mode="pad", act_func=None):
     fig, ax = plt.subplots(2, 1)
     
     image_filename = data_directory/f"images/{image_directory}/{material_id}.tiff"
-    input_numpy = load_tiff_uint32_image(image_filename).astype(np.float64)
+    input_numpy = load_tiff_uint16_image(image_filename).astype(np.float64)
     
     if width:
         input_numpy = resize(input_numpy, (input_numpy.shape[0], width))
@@ -170,9 +173,12 @@ def view_prediction(material_id, model, min_energy_minus_efermi, max_energy_minu
         model.cuda()
     else:
         input_tensor = input_tensor.float().cpu()
-        model.cpu()        
+        model.cpu()   
         
     output_tensor = model.forward(input_tensor)
+    
+    if act_func:
+        output_tensor = act_func(output_tensor[0])
     
     input_tensor = input_tensor.squeeze().cpu()
     output_tensor = output_tensor.detach().squeeze().cpu()
@@ -191,6 +197,97 @@ def view_prediction(material_id, model, min_energy_minus_efermi, max_energy_minu
     
     return ax
 
+def view_prediction_images(material_id, model, data_directory=DATA_DIRECTORY, image_directory="no_dos_bw_dpi_10/band_images",
+                    device="gpu", e_bounds=[-4, 4], verbose=True, width=None, height=None, height_mode="pad", act_func=None):
+    
+    input_image_path = data_directory/f"images/{image_directory}/{material_id}.png"
+    input_image = Image.open(input_image_path).convert('RGB')
+    transform = transforms.Compose([
+        transforms.Resize((height, width)),  # Adjust height and width as needed
+        transforms.ToTensor(),
+    ])
+    input_tensor = transform(input_image).unsqueeze(0)  # Add batch dimension
+    
+    # Generate predictions
+    with torch.no_grad():
+        reconstructed_image_tuple = model(input_tensor)
+
+    # Access the relevant tensor from the tuple
+    reconstructed_image = F.sigmoid(reconstructed_image_tuple[0])
+
+    # Convert tensors to NumPy arrays for visualization
+    input_image_np = np.transpose(input_tensor.squeeze().numpy(), (1, 2, 0))
+    reconstructed_image_np = np.transpose(reconstructed_image.squeeze().numpy(), (1, 2, 0))
+
+    # # resize? not sure if correct
+    # reconstructed_image_np = reconstructed_image_np/255.0
+    
+    #print(input_image_np)
+    #print(reconstructed_image_np)
+    # Display the input and reconstructed images
+    plt.subplot(1, 2, 1)
+    plt.imshow(input_image_np)
+    plt.title('Input Image')
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(reconstructed_image_np)
+    plt.title('Reconstructed Image')
+
+    plt.show()
+    
+    # visdom view
+#     import visdom
+
+#     vis = visdom.Visdom()
+
+#     # Send input and reconstructed images to Visdom
+#     vis.image(input_image_np.transpose((2, 0, 1)), win='Input Image', opts=dict(title='Input Image'))
+    #vis.image(reconstructed_image_np.transpose((2, 0, 1)), win='Reconstructed Image', opts=dict(title='Reconstructed Image'))
+    
+    return 0
+
+def load_band_image_array(material_id, npz_path, npz_filename, npz_key="images"):
+    
+    anupam_df = pd.read_csv(ANUPAM_PATH, index_col="ID")
+    i = anupam_df.index.get_loc(material_id)
+    images = np.load("{0}/{1}.npz".format(npz_path, npz_filename))[npz_key]
+    
+    input_array = images[i]
+    #input_tensor = torch.from_numpy(input_array).cpu()
+
+    return input_array
+
+def binarize(array_data, threshold=0.8):
+    array_data[array_data>=threshold] = 1.0
+    array_data[array_data<=threshold] = 0.0
+    return array_data
+
+def view_prediction_npz(material_id, model, npz_path, npz_filename, npz_key="images", bool_binarise=False, threshold=0.8):
+    model.cpu()
+
+    input_array = load_band_image_array(material_id, npz_path, npz_filename, npz_key="images")
+    input_tensor = torch.from_numpy(input_array).cpu()
+    input_tensor = input_tensor.unsqueeze(0).float()
+    
+    with torch.no_grad():
+        prediction = F.sigmoid(model(input_tensor)[0])
+        
+    prediction = prediction.detach().squeeze().numpy()
+    
+    if(bool_binarise):
+        prediction = binarize(prediction, threshold=threshold)
+    
+    fig, ax  = plt.subplots(2, 1)
+    ax[0].set_title("Input")
+    ax[0].imshow(input_array)
+    
+    ax[1].set_title("Reconstruction")
+    ax[1].imshow(prediction)
+    
+    
+    
+    
+    
 # def view_prediction(material_id, learner, min_energy_minus_efermi, max_energy_minus_efermi, data_directory=DATA_DIRECTORY, image_directory="energies_12_nearest_bands", device="gpu", e_bounds=[-4, 4], verbose=True, width=None):
 #     fig, ax = plt.subplots(2, 1)
     

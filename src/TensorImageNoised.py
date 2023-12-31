@@ -29,7 +29,7 @@ class RandomErasingTransform(RandTransform):
     def _bounds(self, area, img_h, img_w):
         r_area = random.uniform(self.sl,self.sh) * area
         aspect = math.exp(random.uniform(*self.log_ratio))
-        return self._slice(r_area*aspect, img_h) + _slice(r_area/aspect, img_w)
+        return self._slice(r_area*aspect, img_h) + self._slice(r_area/aspect, img_w)
     
     def _slice(self, area, sz):
         bound = int(round(math.sqrt(area)))

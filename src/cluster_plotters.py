@@ -57,13 +57,10 @@ def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', **kwargs):
     ellipse.set_transform(transf + ax.transData)
     return ax.add_patch(ellipse)
 
-def plot_cluster_ellipses(df, ax=None, color=None):
+def plot_cluster_ellipses(df, ax=None, color=None, annotation_color=None, color_map=None):
     if ax is None:
         fig, ax  = plt.subplots(figsize=(13,13))
 
-    color_map = False
-    if color is None:
-        color_map = True
  
     unique_label,cluster_rep_index, counts = np.unique(df.labels, return_index=True, return_counts=True)
     cmap = plt.cm.get_cmap('turbo')
@@ -72,12 +69,13 @@ def plot_cluster_ellipses(df, ax=None, color=None):
     for label, rep_id in zip(unique_label, cluster_rep_index):
         if label != -1:
             if color_map:
-                color=cmap(norm(label))
+                color = cmap(norm(label))
+                annotation_color = cmap(norm(label))
             
 
             cluster_x_y = df[df.labels==label][["fx", "fy"]].to_numpy() 
             confidence_ellipse(cluster_x_y[:, 0], cluster_x_y[:, 1], ax, edgecolor=color, n_std=3)
-            ax.annotate(label, cluster_x_y.mean(0)+[-7,0],color=color,alpha=1, weight='normal', ha='center', va='center', size=9)
+            ax.annotate(label, cluster_x_y.mean(0)+[-7,0],color=annotation_color,alpha=1, weight='normal', ha='center', va='center', size=9)
     return ax
 
 def plot_groups(df, column, ax=None, values=None):
@@ -96,7 +94,7 @@ def plot_groups(df, column, ax=None, values=None):
         if (value == -1) and (column=="labels"):
             ax.scatter(df.fx[indices], df.fy[indices],s=1, c="black", label=value)
         else:
-            ax.scatter(df.fx[indices], df.fy[indices],s=3, c=cc.glasbey[i%len(cc.glasbey)], label=value)
+            ax.scatter(df.fx[indices], df.fy[indices],s=4, c=cc.glasbey[i%len(cc.glasbey)], label=value)
 
     if len(values) > len(cc.glasbey):
         print(f"Colors used multiple times since number of categories exceeds {len(cc.glasbey)}.")
