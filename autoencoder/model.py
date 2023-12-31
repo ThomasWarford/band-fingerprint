@@ -1,3 +1,15 @@
+#!/usr/bin/env python
+"""
+Resnet based autoencoder models.
+
+File originally from https://github.com/Horizon2333/imagenet-autoencoder/blob/main/models/resnet.py.
+
+Modifications:
+    - Adding `sigmoid` argument so `nn.BCEWithLogitsLoss` can be used
+    - Z_channels argument to fingerprint size can be varied
+    - Create ResNetVAE class (which performed worse for clustering unfortunately).
+"""
+
 import torch
 import torch.nn as nn
 
@@ -71,163 +83,11 @@ class ResnetVAE(ResNetAutoEncoder):
         eps = torch.randn_like(std)
         return eps * std + mu
     
-class ResnetVAEOld2(ResNetAutoEncoder):
-    def __init__(self, configs, bottleneck, sigmoid, z_channels, z_dim):
-
-        super(ResnetVAE, self).__init__(configs, bottleneck, sigmoid)
-        
-        self.z_channels = z_channels
-        self.linear_size = z_channels * 4 * 4 # for 128x128 images
-        self.z_dim = z_dim
-        
-        
-        self.encoder = ResNetEncoder(configs=configs,       bottleneck=bottleneck, z_channels=z_channels)
-        self.flatten = nn.Flatten()
-        self.linear1 = nn.Linear(self.linear_size, z_dim*2)
-        
-        self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid, z_channels=z_channels)
-        self.linear2 = nn.Linear(z_dim, self.linear_size)
-        
-        for m in self.modules():
-                # if isinstance(m, (nn.Linear, nn.Conv2d)):
-                #     init.kaiming_normal(m.weight)
-                #     if m.bias is not None:
-                #         m.bias.data.fill_(0)
-                # elif isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
-                #     m.weight.data.fill_(1)
-                #     if m.bias is not None:
-                #         m.bias.data.fill_(0)
-            
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
-                nn.init.constant_(m.bias, 0)
-        
-        
-    def forward(self, x):
-        x = self.encoder(x)
-        x = self.flatten(x)
-        mu_logvar = self.linear1(x)
-        mu = mu_logvar[:, :self.z_dim]
-        logvar = mu_logvar[:, self.z_dim:]
-        
-        z = self.reparametrize(mu, logvar)
-        res = self.linear2(z)
-        res = res.view(res.shape[0], self.z_channels, 4, 4)
-        x_recon = self.decoder(res)
-        
-        return x_recon, mu, logvar
-
-    def reparametrize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
-    
-class ResnetVAEOld(ResNetAutoEncoder):
-    def __init__(self, configs, bottleneck, sigmoid, z_channels):
-
-        super(ResnetVAEOld, self).__init__(configs, bottleneck, sigmoid, z_channels)
-        
-        self.z_channels = z_channels
-        self.z_dim = z_channels * 4 * 4 # for 128x128 images
-        
-        self.encoder = ResNetEncoder(configs=configs,       bottleneck=bottleneck, z_channels=z_channels*2)
-        self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid, z_channels=z_channels)
-        
-        self.flatten = nn.Flatten()
-        
-        
-    def forward(self, x):
-        x = self.encoder(x)
-        mu_logvar = self.flatten(x)
-        mu = mu_logvar[:, :self.z_dim]
-        logvar = mu_logvar[:, self.z_dim:]
-        
-        z = self.reparametrize(mu, logvar)
-        z = z.view(z.shape[0], self.z_channels, 4, 4)
-        x_recon = self.decoder(z)
-        
-        return x_recon, mu, logvar
-
-    def reparametrize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
-
-        
-    
-class BigResNetAutoEncoder(nn.Module):
-
-    def __init__(self, configs, bottleneck, sigmoid):
-
-        super(BigResNetAutoEncoder, self).__init__()
-
-        self.encoder = BigEncoder(configs=configs,       bottleneck=bottleneck)
-        self.decoder = BigDecoder(configs=configs[::-1], bottleneck=bottleneck, sigmoid=sigmoid)
-        
-        self.flatten = nn.Flatten()
-    
-    def forward(self, x):
-
-        x = self.encoder(x)
-        x = self.flatten(x)
-        
-        
-        x = self.decoder(x)
-
-        return x
-    
-# class ResNetAutoEncoderLinear(nn.Module):
-
-#     def __init__(self, configs, bottleneck, z_dim):
-
-#         super(ResNetAutoEncoderLinear, self).__init__()
-
-#         self.encoder = ResNetEncoder(configs=configs, bottleneck=bottleneck)
-#         self.decoder = ResNetDecoder(configs=configs[::-1], bottleneck=bottleneck)
-        
-#         if bottleneck:
-#             self.out_features = 2048
-#         else:
-#             self.out_features = 512
-            
-#         self.fc1 = nn.Linear(in_features=z_dim, out_features=self.out_features)
-#         self.fc2 = nn.Linear(in_features=z_dim, out_features=self.out_features)
-    
-#         self.upscale = nn.Sequential(nn.UpsamplingNearest2d((4, 4)), nn.Conv2d(self.out_features, self.out_features, 1)) # for size 128 images
-        
-#         for m in self.modules():
-#             if isinstance(m, nn.Conv2d):
-#                 nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
-#                 if m.bias is not None:
-#                     nn.init.constant_(m.bias, 0)
-#             elif isinstance(m, nn.BatchNorm2d):
-#                 nn.init.constant_(m.weight, 1)
-#                 nn.init.constant_(m.bias, 0)
-#             elif isinstance(m, nn.Linear):
-#                 nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
-#                 nn.init.constant_(m.bias, 0)
-    
-#     def forward(self, x):
-
-#         x = self.encoder(x)
-#         x = self.relu(x)
-#         x = self.fc(x)
-#         x = self.relu(x)
-#         x = x.view(x.shape[0], -1, 4, 4) 
-#         x = self.upscale(x)
-#         x = self.decoder(x)
-
-#         return x
 
 class ResNet(nn.Module):
-
+    """
+    Normal resnet for classification - not used
+    """
     def __init__(self, configs, bottleneck=False, num_classes=1000):
         super(ResNet, self).__init__()
 
@@ -306,25 +166,7 @@ class ResNetEncoder(nn.Module):
         x = self.conv5(x)
 
         return x
-    
-class BigEncoder(ResNetEncoder):
-    def __init__(self, configs, bottleneck=False):
-        super(BigEncoder, self).__init__(configs, bottleneck)
-    
-        self.conv6 = EncoderResidualBlock(in_channels=512, hidden_channels=512, layers=configs[0], downsample_method="conv")
         
-    def forward(self, x):
-        
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
-        x = self.conv6(x)
-
-        return x
-    
-
 class ResNetDecoder(nn.Module):
 
     def __init__(self, configs, bottleneck=False, sigmoid=False, z_channels=None):
@@ -374,26 +216,6 @@ class ResNetDecoder(nn.Module):
 
         return x
     
-class BigDecoder(ResNetDecoder):
-    def __init__(self, configs, bottleneck=False, sigmoid=False):
-        super(BigDecoder, self).__init__(configs, bottleneck, sigmoid)
-        
-        if bottleneck: raise NotImplementedError
-        
-        self.conv0 = DecoderResidualBlock(hidden_channels=512, output_channels=512, layers=configs[0])
-        # self.conv1 = DecoderResidualBlock(hidden_channels=256, output_channels=256, layers=configs[0])
-        
-    def forward(self, x):
-        
-        x = self.conv0(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
-
-        return x
-
 class EncoderResidualBlock(nn.Module):
 
     def __init__(self, in_channels, hidden_channels, layers, downsample_method="conv"):
@@ -472,7 +294,6 @@ class EncoderBottleneckBlock(nn.Module):
 
         return x
 
-
 class DecoderResidualBlock(nn.Module):
 
     def __init__(self, hidden_channels, output_channels, layers):
@@ -517,7 +338,6 @@ class DecoderBottleneckBlock(nn.Module):
             x = layer(x)
 
         return x
-
 
 class EncoderResidualLayer(nn.Module):
 
