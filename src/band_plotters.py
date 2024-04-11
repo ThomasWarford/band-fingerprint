@@ -24,7 +24,8 @@ from fastai.vision.all import *
 # from .Tiff32Image import *
 
 # DATA_DIRECTORY = Path("../../data")
-DATA_DIRECTORY = Path("/storage/2dmatpedia")
+# DATA_DIRECTORY = Path("/storage/2dmatpedia")
+DATA_DIRECTORY = Path("/storage/materials_project/")
 ANUPAM_PATH = Path("/notebooks/band-fingerprint/fingerprints/anupam_original.csv")
 
 # "henry's local data path"
