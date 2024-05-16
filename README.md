@@ -7,3 +7,4 @@
 - Analysis/plotting of fingerprints happens in `analyis`.
 - .py files containing functions, ect go in `src`.
 - Miscellaneous/messy files go in `misc`
+
