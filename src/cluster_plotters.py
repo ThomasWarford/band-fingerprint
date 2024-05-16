@@ -68,7 +68,7 @@ def plot_cluster_ellipses(df, ax=None, color=None, annotation_color=None, color_
 
  
     unique_label,cluster_rep_index, counts = np.unique(df.labels, return_index=True, return_counts=True)
-    cmap = plt.cm.get_cmap('turbo')
+    cmap = plt.get_cmap('turbo')
     norm = matplotlib.colors.Normalize(vmin=min(df.labels), vmax=max(df.labels))
     
     for label, rep_id in zip(unique_label, cluster_rep_index):
