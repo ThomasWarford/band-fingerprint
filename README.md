@@ -7,5 +7,4 @@
 - Analysis/plotting of fingerprints happens in `analyis`.
 - .py files containing functions, ect go in `src`.
 - Miscellaneous/messy files go in `misc`
-## Notes
-- all cluster tables are limited to maximum 15 materials that have the highest membership probabilities
+
